@@ -1,6 +1,5 @@
 import express from "express";
 import cors from "cors";
-import adminRouter from "./src/routers/adminRouter.js";
 import morgan from "morgan";
 
 const app = express();

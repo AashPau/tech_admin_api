@@ -1,7 +1,7 @@
-import adminRouter from "./adminRouter.js";
+import userRouter from "./userRouter.js";
 export default [
   {
-    path: "/api/v1/admin",
-    middlewares: [adminRouter],
+    path: "/api/v1/user",
+    middlewares: [userRouter],
   },
 ];
