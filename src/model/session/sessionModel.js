@@ -9,3 +9,7 @@ export const createNewSession = (obj) => {
 export const deleteSession = (filter) => {
   return sessionSchema.findOneAndDelete(filter);
 };
+
+export const getASession = (filter) => {
+  return sessionSchema.findOne(filter);
+};
