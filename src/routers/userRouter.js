@@ -13,12 +13,13 @@ import {
   deleteSession,
 } from "../model/session/sessionModel.js";
 import { emailVerification } from "../services/email/nodemailer.js";
-import { getTokens } from "../utils/jwt.js";
+import { getTokens, verifyRefreshJWT } from "../utils/jwt.js";
 import { auth } from "../middlewares/auth.js";
 const router = express.Router();
 
 router.post("/", newUserValidation, async (req, res, next) => {
   try {
+    //encrypt the password
     req.body.password = hashPassword(req.body.password);
 
     const user = await createNewUser(req.body);
@@ -64,22 +65,20 @@ router.post("/user-verification", async (req, res, next) => {
       associate: e,
     });
     if (session?._id) {
-      res.json({
-        status: "success",
-        message: "your account has been verified",
-      });
+      //update user table
+      const result = await updateUser(
+        { email: e },
+        { status: "active", isEmailVerified: true }
+      );
+
+      if (result?._id) {
+        res.json({
+          status: "error",
+          message: "your account has been verified. you may sign in now",
+        });
+      }
     }
-    //update user table
-    const result = await updateUser(
-      { email: e },
-      { status: "active", isEmailVerified: true }
-    );
-    if (result?._id) {
-      res.json({
-        status: "error",
-        message: "your account has been verified. you may sign in now",
-      });
-    }
+
     res.json({
       status: "error",
       message: "invalid Link, contact admin",
@@ -92,6 +91,8 @@ router.post("/user-verification", async (req, res, next) => {
 router.get("/", auth, (req, res, next) => {
   try {
     const { userInfo } = req;
+    userInfo.refreshJWT = undefined;
+
     userInfo?.status === "active"
       ? res.json({
           status: "success",
@@ -111,6 +112,7 @@ router.get("/", auth, (req, res, next) => {
 //admin authentication4
 router.post("/login", async (req, res, next) => {
   try {
+    let message = "";
     const { email, password } = req.body;
 
     const user = await getAUser({ email });
@@ -128,6 +130,14 @@ router.post("/login", async (req, res, next) => {
       }
     }
 
+    if (user?.status === "inactive") {
+      message = "Your account is not active, contact admin";
+    }
+
+    if (!user?.isEmailVerified) {
+      message = "User not verified, please check your email and verify";
+    }
+
     //create jwt then return
 
     res.json({
@@ -137,6 +147,16 @@ router.post("/login", async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+});
+
+//return new accessJWT
+router.get("/new-accessjwt", async (req, res, next) => {
+  try {
+    const { authorization } = req.headers;
+
+    //verify jwt
+    const decode = verifyRefreshJWT(authorization);
+  } catch (error) {}
 });
 
 export default router;

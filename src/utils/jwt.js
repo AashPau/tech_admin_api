@@ -9,6 +9,17 @@ export const signAcessJWT = async ({ email }) => {
   const session = await createNewSession({ token, associate: email });
   return session._id ? token : null;
 };
+
+export const verifyAcessJWT = async (token) => {
+  try {
+    const decoded = JWT.verify(token, process.env.ACCESSJWT_SECRET);
+    return decoded;
+  } catch (error) {
+    return error.message;
+  }
+};
+
+//==============
 export const signRefreshJWT = async (payload) => {
   const refreshJWT = JWT.sign(payload, process.env.REFRESHJWT_SECRET, {
     expiresIn: "30d",
@@ -17,19 +28,17 @@ export const signRefreshJWT = async (payload) => {
   return user._id ? refreshJWT : null;
 };
 
+export const verifyRefreshJWT = (token) => {
+  try {
+    return JWT.verify(token, process.env.REFRESHJWT_SECRET);
+  } catch (error) {
+    return error.message;
+  }
+};
+
 export const getTokens = async (email) => {
   return {
     accessJWT: await signAcessJWT(email),
     refreshJWT: await signRefreshJWT(email),
   };
-};
-
-//==============
-export const verifyAcessJWT = async (token) => {
-  try {
-    const decoded = JWT.verify(token, process.env.ACCESSJWT_SECRET);
-    return decoded;
-  } catch (error) {
-    return error.message;
-  }
 };
