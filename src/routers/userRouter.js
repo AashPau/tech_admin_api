@@ -10,10 +10,11 @@ import { newUserValidation } from "../middlewares/joiValidation.js";
 import { v4 as uuidv4 } from "uuid";
 import {
   createNewSession,
+  deleteManySession,
   deleteSession,
 } from "../model/session/sessionModel.js";
 import { emailVerification } from "../services/email/nodemailer.js";
-import { getTokens, verifyRefreshJWT } from "../utils/jwt.js";
+import { getTokens, signAcessJWT, verifyRefreshJWT } from "../utils/jwt.js";
 import { auth } from "../middlewares/auth.js";
 const router = express.Router();
 
@@ -156,7 +157,50 @@ router.get("/new-accessjwt", async (req, res, next) => {
 
     //verify jwt
     const decode = verifyRefreshJWT(authorization);
-  } catch (error) {}
+    console.log(decode, "---------");
+    if (decode?.email) {
+      //check if exist in the user table
+      const user = await getAUser({
+        email: decode.email,
+        refreshJWT: authorization,
+      });
+      if (user?._id) {
+        //create new accessJWT and return
+        const accessJWT = await signAcessJWT(decode.email);
+        if (accessJWT) {
+          return res.json({
+            status: "success",
+            message: "",
+            accessJWT,
+          });
+        }
+      }
+    }
+    res.status(401).json({
+      status: "error",
+      message: "Unauthorized",
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Logout user
+router.delete("/logout", auth, async (req, res, next) => {
+  try {
+    const { email } = req.userInfo;
+
+    await updateUser({ email }, { refreshJWT: "" });
+    // verify jwt
+    await deleteManySession({ associate: email });
+
+    res.json({
+      status: "success",
+      message: "you are loggedout",
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 export default router;
