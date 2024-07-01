@@ -13,7 +13,11 @@ import {
   deleteManySession,
   deleteSession,
 } from "../model/session/sessionModel.js";
-import { emailVerification } from "../services/email/nodemailer.js";
+import {
+  accountUpdatedNotification,
+  emailVerification,
+  sendOTPMail,
+} from "../services/email/nodemailer.js";
 import { getTokens, signAcessJWT, verifyRefreshJWT } from "../utils/jwt.js";
 import { auth } from "../middlewares/auth.js";
 const router = express.Router();
@@ -197,6 +201,69 @@ router.delete("/logout", auth, async (req, res, next) => {
     res.json({
       status: "success",
       message: "you are loggedout",
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+//request otp for password reset
+router.post("/otp", async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    console.log(req.body, "req.body");
+
+    const user = await getAUser({ email });
+
+    if (user?._id) {
+      const token = otpGenerator();
+
+      await createNewSession({
+        token,
+        associate: email,
+        type: "otp",
+      });
+      //sendd the email
+      sendOTPMail({ token, fName: user.fName, email });
+    }
+    res.json({
+      status: "success",
+      message:
+        "If your email is found in our system, we have sent you an OTP in your email, please check your Inbox",
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+//check of the otp is valid and reset the password
+router.patch("/password/reset", async (req, res, next) => {
+  try {
+    const { email, otp, password } = req.body;
+    if ((email, otp, password)) {
+      const session = deleteSession({
+        token: otp,
+        associate: email,
+        type: "otp",
+      });
+      if (session?._id) {
+        //update user table with new hashPass
+        const user = await updateUser(
+          { email },
+          { password: hashPassword(password) }
+        );
+        if (user?._id) {
+          accountUpdatedNotification({ email, fName: user.fName });
+          return res.json({
+            status: "success",
+            message: "Your password has been reset",
+          });
+        }
+      }
+    }
+    res.json({
+      status: "error",
+      message: "Invalid otp por data request, try again later",
     });
   } catch (error) {
     next(error);
