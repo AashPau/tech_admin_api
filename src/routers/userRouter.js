@@ -15,10 +15,10 @@ import {
 } from "../model/session/sessionModel.js";
 import {
   accountUpdatedNotification,
-  emailVerification,
+  emailVerificationMail,
   sendOTPMail,
 } from "../services/email/nodemailer.js";
-import { getTokens, signAcessJWT, verifyRefreshJWT } from "../utils/jwt.js";
+import { getTokens, signAccessJWT, verifyRefreshJWT } from "../utils/jwt.js";
 import { auth } from "../middlewares/auth.js";
 const router = express.Router();
 
@@ -29,7 +29,7 @@ router.post("/", newUserValidation, async (req, res, next) => {
 
     const user = await createNewUser(req.body);
 
-    //create new url
+    //create new url and add in database
     if (user?._id) {
       const token = uuidv4();
       const obj = {
@@ -38,7 +38,8 @@ router.post("/", newUserValidation, async (req, res, next) => {
       };
       const result = await createNewSession(obj);
       if (result?._id) {
-        emailVerification({
+        //process for sending email
+        emailVerificationMail({
           email: user.email,
           fName: user.fName,
           url:
@@ -96,6 +97,7 @@ router.post("/user-verification", async (req, res, next) => {
 router.get("/", auth, (req, res, next) => {
   try {
     const { userInfo } = req;
+    console.log("USERINFO", userInfo);
     userInfo.refreshJWT = undefined;
 
     userInfo?.status === "active"
@@ -119,15 +121,15 @@ router.post("/login", async (req, res, next) => {
   try {
     let message = "";
     const { email, password } = req.body;
-
+    console.log("userEmail", email);
     const user = await getAUser({ email });
-    if (user._id) {
+    if (user?._id && user?.status === "active" && user?.isEmailVerified) {
       //verify the password
       const confirmPassword = comparePassword(password, user.password);
 
       if (confirmPassword) {
         //user is authenticated
-        res.json({
+        return res.json({
           status: "success",
           message: "login Successful",
           jwts: await getTokens(email),
@@ -170,7 +172,7 @@ router.get("/new-accessjwt", async (req, res, next) => {
       });
       if (user?._id) {
         //create new accessJWT and return
-        const accessJWT = await signAcessJWT(decode.email);
+        const accessJWT = await signAccessJWT(decode.email);
         if (accessJWT) {
           return res.json({
             status: "success",

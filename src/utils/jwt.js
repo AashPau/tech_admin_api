@@ -1,7 +1,9 @@
 import JWT from "jsonwebtoken";
 import { createNewSession } from "../model/session/sessionModel.js";
+import { updateUser } from "../model/user/userModel.js";
 
-export const signAcessJWT = async ({ email }) => {
+export const signAccessJWT = async (email) => {
+  console.log("email for jwt sign", email);
   const token = JWT.sign({ email }, process.env.ACCESSJWT_SECRET, {
     expiresIn: "15m",
   });
@@ -10,7 +12,7 @@ export const signAcessJWT = async ({ email }) => {
   return session._id ? token : null;
 };
 
-export const verifyAcessJWT = async (token) => {
+export const verifyAccessJWT = async (token) => {
   try {
     const decoded = JWT.verify(token, process.env.ACCESSJWT_SECRET);
     return decoded;
@@ -20,11 +22,11 @@ export const verifyAcessJWT = async (token) => {
 };
 
 //==============
-export const signRefreshJWT = async (payload) => {
-  const refreshJWT = JWT.sign(payload, process.env.REFRESHJWT_SECRET, {
+export const signRefreshJWT = async (email) => {
+  const refreshJWT = JWT.sign({ email }, process.env.REFRESHJWT_SECRET, {
     expiresIn: "30d",
   });
-  const session = await updateUser({ email }, { refreshJWT });
+  const user = await updateUser({ email }, { refreshJWT });
   return user._id ? refreshJWT : null;
 };
 
@@ -37,8 +39,9 @@ export const verifyRefreshJWT = (token) => {
 };
 
 export const getTokens = async (email) => {
+  console.log("email at get tokens", email);
   return {
-    accessJWT: await signAcessJWT(email),
+    accessJWT: await signAccessJWT(email),
     refreshJWT: await signRefreshJWT(email),
   };
 };
